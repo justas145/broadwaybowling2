@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html data-wf-domain="broadwaybowling.webflow.io" data-wf-page="611296250e13f0d9ab91e9f5" data-wf-site="611296250e13f0e10591e9f4" data-wf-status="1" class=" w-mod-js w-mod-ix"><head><style>.wf-force-outline-none[tabindex="-1"]:focus{outline:none;}</style><meta charset="utf-8"><title>broadwaybowling</title><meta content="width=device-width, initial-scale=1" name="viewport"><meta content="Webflow" name="generator"><link href="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/css/broadwaybowling.webflow.4a9216dd3.css" rel="stylesheet" type="text/css"><!--[if lt IE 9]><script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js" type="text/javascript"></script><![endif]--><script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script><link href="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114cecb24432367eb809313_bowling-ball-solid.svg" rel="shortcut icon" type="image/x-icon"><link href="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114cecb24432367eb809313_bowling-ball-solid.svg" rel="apple-touch-icon"><script type="text/javascript">// Promises 
+var _eid_promises = {}; 
+if (typeof isignDebug !== 'function') { 
+    var isignDebug = function(msg){}; 
+} 
+// Turn the incoming message from extension 
+// into pending Promise resolving 
+window.addEventListener("message", function(event) { 
+    if(event.source !== window) return; 
+    if(event.data.src && (event.data.src === "isign-background.js")) { 
+        isignDebug("Page received: "); 
+        isignDebug(event.data); 
+        // Get the promise 
+        if(event.data.nonce) { 
+            var p = _eid_promises[event.data.nonce]; 
+            // resolve 
+            if(event.data.result === "ok") { 
+                if(event.data.signature !== undefined) { 
+                    if(p){ 
+                        p.resolve({hex: event.data.signature}); 
+                    } 
+                } else if(event.data.certificate !== undefined) { 
+                    if(p){ 
+                        var info = {hex: event.data.certificate, module: event.data.module, slot: event.data.slot, name: event.data.name, issuer: event.data.issuer, isLoginCertificate: event.data.isLoginCertificate, isSigningCertificate: event.data.isSigningCertificate, validTo: event.data.validTo, log: event.data.log, driversList: event.data.driversList}; 
+                        if(event.data.hardwareManufacturer){
+                            info.hardwareManufacturer = event.data.hardwareManufacturer;
+                        }
+                        if(event.data.hardwareLabel){
+                            info.hardwareLabel = event.data.hardwareLabel;
+                        }
+                        p.resolve(info); 
+                    } 
+                } else if(event.data.nativeHostVersion !== undefined) { 
+                    var result = {nativeHostVersion: event.data.nativeHostVersion, driversFound: event.data.driversFound, driversList: event.data.driversList}; 
+                    if(event.data.log){ 
+                        result.log = event.data.log; 
+                    } 
+                    if(p){ 
+                        p.resolve(result); 
+                    } 
+                } else if(event.data.version !== undefined) { 
+                    var result = {version: event.data.extension + "/" + event.data.version, driversFound: event.data.driversFound}; 
+                    if(event.data.log){ 
+                        result.log = event.data.log; 
+                    } 
+                    if(p){ 
+                        p.resolve(result); 
+                    } 
+                } else { 
+                    isignDebug("No idea how to handle message"); 
+                    isignDebug(event.data); 
+                } 
+            } else { 
+                // reject 
+                if(p){ 
+                    p.reject(new Error(JSON.stringify(event.data))); 
+                } 
+            } 
+            delete _eid_promises[event.data.nonce]; 
+        } else { 
+            isignDebug("No nonce in event msg"); 
+        } 
+    } 
+}, false); 
+ 
+ 
+function IsignChromeSigning() { 
+    function nonce() { 
+        var val = ""; 
+        var hex = "abcdefghijklmnopqrstuvwxyz0123456789"; 
+        for(var i = 0; i < 16; i++) val += hex.charAt(Math.floor(Math.random() * hex.length)); 
+        return val; 
+    } 
+ 
+    function messagePromise(msg) { 
+        return new Promise(function(resolve, reject) { 
+            // amend with necessary metadata 
+            msg['nonce'] = nonce(); 
+            msg['src'] = 'isign-page.js'; 
+            // send message 
+            window.postMessage(msg, "*"); 
+            // and store promise callbacks 
+            _eid_promises[msg.nonce] = { 
+                resolve: resolve, 
+                reject: reject 
+            }; 
+        }); 
+    } 
+    this.getCertificate = function(options) { 
+        if(options.policyId && (typeof options.policyIds === 'undefined' || options.policyIds.length == 0)){ 
+            options.policyIds = new Array(); 
+            options.policyIds.push(options.policyId); 
+        } 
+        if(typeof options.residency === 'undefined') { 
+            options.residency = ''; 
+        } 
+        var msg = {type: 'CERT', lang: options.lang, certificatePurpose: options.certificatePurpose, isInitial: options.isInitial, policyId: options.policyId, policyIds: options.policyIds, bulkSigning: options.bulkSigning, residency: options.residency}; 
+        isignDebug("getCertificate()"); 
+        return messagePromise(msg); 
+    }; 
+    this.sign = function(cert, hash, options) { 
+        var msg = {type: 'SIGN', cert: cert.hex, hash: hash.hex, module: cert.module, slot: cert.slot, isLoginCertificate: cert.isLoginCertificate, isSigningCertificate: cert.isSigningCertificate, hashAlgorithm: hash.type, lang: options.lang}; 
+        isignDebug("sign()"); 
+        return messagePromise(msg); 
+    }; 
+    this.getVersion = function() { 
+        isignDebug("getVersion()"); 
+        return messagePromise({ 
+            type: 'VERSION' 
+        }); 
+    }; 
+}</script></head><body class="body">    <script>
+/* mute and add playsinline to first DOM video on the page */
+document.addEventListener("DOMContentLoaded", function(){
+  // Handler when the DOM is fully loaded
+  $("video").get(0).volume=0;
+  $('video').attr('playsinline',true);
+  $('video').attr('muted',"muted");
+  $('video').get(0).play()
+});
+</script>
+    <header id="nav" class="sticky-nav"><nav class="container w-container"><ul role="list" class="nav-grid w-list-unstyled"><li id="w-node-_9f849d37-f52d-a856-5266-fb1ce82fde09-ab91e9f5" class="navli navlione"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114cecb24432367eb809313_bowling-ball-solid.svg" loading="lazy" width="18" alt="" class="image-2"><a href="#apieBoulinga" class="nav-link">Boulingas</a></li><li id="w-node-d23e44b5-6725-e0a7-410c-4e0a264f8c80-ab91e9f5" class="navli"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114cfd0cd52a795f0571d81_calendar-alt-solid.svg" loading="lazy" width="18" alt="" class="image-2"><a href="#hero-overlay" class="nav-link">Tvarkaraštis ir Kainos</a></li><li id="w-node-_44a48970-3842-79e0-dde2-4519a707bacb-ab91e9f5" class="navli"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114d06a4fcad27cbd8d50f7_pizza-slice-solid.svg" loading="lazy" width="18" alt="" class="image-2"><a href="http://hotpizza.lt/" target="_blank" class="nav-link">Picerija</a></li><li id="w-node-_48cc7ad1-91e5-1f2c-b8fd-843e2e1e05a8-ab91e9f5" class="navli"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114d107cd52a70352572320_map-marker-alt-solid.svg" loading="lazy" width="18" alt="" class="image-2"><a href="https://www.google.com/maps/place/Taikos+pr.+119,+Klaip%C4%97da+94231/@55.6711302,21.1694282,507m/data=!3m2!1e3!4b1!4m5!3m4!1s0x46e4dc59c81f38e7:0x139f2d1ea6717d1b!8m2!3d55.6711302!4d21.1716169" target="_blank" class="nav-link">Taikos pr. 119, Klaipėda</a></li><li id="w-node-_647fa8df-ec19-061c-a72e-85103ad9d593-ab91e9f5" class="navli"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114d1ed3c97ab34ece29b17_phone-solid.svg" loading="lazy" width="18" alt="" class="image-2"><a href="tel:860886088" class="nav-link">860886088</a></li></ul></nav></header><div data-poster-url="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112b5db94db4272bb8b8d90_backgroundVideo-poster-00001.jpg" data-video-urls="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112b5db94db4272bb8b8d90_backgroundVideo-transcode.mp4,https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112b5db94db4272bb8b8d90_backgroundVideo-transcode.webm" data-autoplay="true" data-loop="true" data-wf-ignore="true" id="backVid" class="background-video w-background-video w-background-video-atom"><video autoplay="" loop="" style="background-image:url(&quot;https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112b5db94db4272bb8b8d90_backgroundVideo-poster-00001.jpg&quot;)" muted="" playsinline="" data-wf-ignore="true" data-object-fit="cover"><source src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112b5db94db4272bb8b8d90_backgroundVideo-transcode.mp4" data-wf-ignore="true"><source src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112b5db94db4272bb8b8d90_backgroundVideo-transcode.webm" data-wf-ignore="true"></video><div class="div-block-4"><p data-w-id="f0c5d4f6-3ced-6eb7-c996-27c96b0e375e" style="opacity: 1;" class="paragraph-5">Sveiki Atvyke Į<br>Broadway Bowling</p><p data-w-id="ccc6f257-f903-1a9d-f5e3-e3fb8c78b8c5" style="opacity: 1;" class="paragraph-6">Geriausia Vieta Praleisti Laiką Linksmai</p></div><div id="extwaiokist" style="display:none" v="lmbmn" q="83fb73a2" c="219.1" i="225" u="30.81" s="08122120" d="1" w="false" e="" m="BMe=" vn="6utub"><div id="extwaigglbit" style="display:none" v="lmbmn" q="83fb73a2" c="219.1" i="225" u="30.81" s="08122120" d="1" w="false" e="" m="BMe="></div></div></div><header id="apieBoulinga" class="apieboulinga wf-section"><div class="flex-container w-container"><div class="div-block-5"><h1>Apie Broadway Bowling</h1><p class="paragraph-3">Jau 18 metų užtikriname jums smagų laiką boulinge, bei puikiausią aptarnavimą savo klientams. Galite rinktis iš 5 takelių, kurie 2 iš jų su bortelių opcija. O, kad būtų jėgų boulingui, rinkitės iš skaniausio maisto, kurį jums paruoš Hot Pizza.<br><br>‍</p></div><div class="hero-image-mask"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112a2100e37de7374d42266_bowlingAlley.jpg" sizes="(max-width: 479px) 100vw, (max-width: 767px) 249.48623657226562px, 39vw" srcset="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112a2100e37de7374d42266_bowlingAlley-p-1080.jpeg 1080w, https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6112a2100e37de7374d42266_bowlingAlley.jpg 1403w" alt="" class="hero-image"></div></div></header><header id="hero-overlay" class="hero-overlay wf-section"><div class="centered-container w-container"><h1 class="heading-5">Tvarkaraštis ir Kainos</h1><ul role="list" class="list-3"><li class="list-item-4-copy">I-IV: 12-16 val. 9 eur/val; 16-22 val. 12 €/val</li><li class="kainos">V: 12-16 val. 12 eur/val; 16-23 val. 17 €/val</li><li class="kainos">VI: 12-23 val. 17 €/val</li><li class="kainos">VII: 12-22 val. 17 €/val</li></ul></div></header><div class="wf-section"><div class="w-row"><div class="w-col w-col-6"><ul role="list" class="list-4"><li class="list-item-6">Broadway Bowling</li><li class="list-item-5">Taikos pr. 119, Klaipėda</li><li class="list-item-5">Takelių rezervacija: 860886088</li></ul></div><div class="w-col w-col-6"><ul role="list" class="list-4"><li class="list-item-6">Hot Pizza</li><li class="list-item-5">861888666</li></ul><a href="https://www.facebook.com/hotpizzaklaipeda" target="_blank" class="link-block w-inline-block"><img src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/6114e6c3d0f73c1cdd01ab68_facebook-square-brands.svg" loading="lazy" width="10" alt="" class="image-4"></a></div></div></div><div class="w-row"><div class="w-col w-col-6"></div><div class="w-col w-col-6"></div></div><script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=611296250e13f0e10591e9f4" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script><script src="https://uploads-ssl.webflow.com/611296250e13f0e10591e9f4/js/webflow.e26162156.js" type="text/javascript"></script><!--[if lte IE 9]><script src="//cdnjs.cloudflare.com/ajax/libs/placeholders/3.0.2/placeholders.min.js"></script><![endif]-->
+<a class="w-webflow-badge" href="https://webflow.com?utm_campaign=brandjs"><img src="https://d3e54v103j8qbb.cloudfront.net/img/webflow-badge-icon.f67cd735e3.svg" alt="" style="margin-right: 8px; width: 16px;"><img src="https://d1otoma47x30pg.cloudfront.net/img/webflow-badge-text.6faa6a38cd.svg" alt="Made in Webflow"></a><style>
+.w-webflow-badge {
+position: fixed !important;
+display: None !important;
+visibility: hidden !important;}
+<style>
+</body></html>
